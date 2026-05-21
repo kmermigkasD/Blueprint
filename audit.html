@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Activity Log — Blueprint</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+  :root {
+    --bg1: #181a20; --bg2: #23262f; --bg3: #2c2f3a;
+    --text1: #f4f4f5; --text2: #a0a3b1; --accent: #6c63ff;
+    --border: #33364a; --red: #ff6b6b; --green: #51cf66; --orange: #ffa94d;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg1); color: var(--text1); min-height: 100vh; }
+
+  /* Auth gate */
+  .auth-gate { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24px; }
+  .auth-gate h2 { color: var(--text2); font-weight: 400; font-size: 18px; }
+
+  /* Header */
+  .header { display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; background: var(--bg2); border-bottom: 1px solid var(--border); }
+  .header h1 { font-size: 18px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .header h1 span { color: var(--text2); font-weight: 400; font-size: 13px; }
+  .header-right { display: flex; align-items: center; gap: 12px; }
+  .header-right img { width: 24px; height: 24px; border-radius: 50%; }
+  .header-right .user-name { font-size: 12px; color: var(--text2); }
+  .back-link { color: var(--accent); text-decoration: none; font-size: 13px; }
+  .back-link:hover { text-decoration: underline; }
+  .logout-btn { background: none; border: 1px solid var(--border); color: var(--text2); padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; }
+  .logout-btn:hover { border-color: var(--text2); color: var(--text1); }
+
+  /* Filters */
+  .filters { display: flex; align-items: center; gap: 12px; padding: 12px 24px; background: var(--bg2); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .filter-group { display: flex; align-items: center; gap: 6px; }
+  .filter-group label { font-size: 12px; color: var(--text2); }
+  .filter-group select, .filter-group input { background: var(--bg3); border: 1px solid var(--border); color: var(--text1); padding: 5px 8px; border-radius: 4px; font-size: 12px; }
+  .filter-group select:focus, .filter-group input:focus { outline: none; border-color: var(--accent); }
+  .refresh-btn { background: var(--accent); border: none; color: #fff; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 500; }
+  .refresh-btn:hover { opacity: 0.9; }
+  .entry-count { font-size: 12px; color: var(--text2); margin-left: auto; }
+
+  /* Table */
+  .log-container { padding: 16px 24px; overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th { text-align: left; padding: 8px 12px; color: var(--text2); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--bg1); }
+  tbody td { padding: 8px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tbody tr:hover { background: var(--bg2); }
+  .ts { color: var(--text2); font-size: 12px; white-space: nowrap; }
+  .user-cell { display: flex; align-items: center; gap: 6px; }
+  .user-email { color: var(--text2); font-size: 11px; }
+  .vertical-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 500; background: var(--bg3); color: var(--text2); text-transform: capitalize; }
+  .action-cell { font-weight: 500; }
+  .details-cell { color: var(--text2); font-size: 12px; max-width: 500px; word-break: break-word; }
+  .details-summary { cursor: pointer; display: flex; align-items: center; gap: 6px; }
+  .details-summary:hover { color: var(--text1); }
+  .details-toggle { font-size: 10px; color: var(--accent); transition: transform 0.15s; display: inline-block; }
+  .details-toggle.open { transform: rotate(90deg); }
+  .narrative-list { margin-top: 8px; list-style: none; padding: 0; }
+  .narrative-item { display: flex; align-items: flex-start; gap: 8px; padding: 5px 0; border-bottom: 1px solid rgba(51,54,74,0.3); font-size: 12px; color: var(--text1); line-height: 1.45; }
+  .narrative-item:last-child { border-bottom: none; }
+  .narrative-icon { flex-shrink: 0; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; margin-top: 1px; }
+  .narrative-icon.move { background: rgba(99,179,237,0.15); color: #63b3ed; }
+  .narrative-icon.plus { background: rgba(72,187,120,0.15); color: #48bb78; }
+  .narrative-icon.minus { background: rgba(245,101,101,0.15); color: #f56565; }
+  .narrative-icon.pencil { background: rgba(237,187,51,0.15); color: #edb933; }
+  .narrative-icon.split { background: rgba(159,122,234,0.15); color: #9f7aea; }
+  .narrative-icon.arrow-up { background: rgba(72,187,120,0.15); color: #48bb78; }
+  .narrative-icon.arrow-down { background: rgba(245,101,101,0.15); color: #f56565; }
+  .narrative-text { flex: 1; }
+  .narrative-text em { font-style: normal; color: var(--accent); font-weight: 500; }
+
+  /* Loading & empty */
+  .loading, .empty { text-align: center; padding: 60px 0; color: var(--text2); font-size: 14px; }
+  .loading::after { content: '...'; animation: dots 1s infinite; }
+  @keyframes dots { 0%,20% { content: '.'; } 40% { content: '..'; } 60%,100% { content: '...'; } }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+const API_URL = window.API_URL || 'https://capacity-planner-production-1cf7.up.railway.app';
+const GOOGLE_CLIENT_ID = '487456084105-01l0m47e7up61qb40sf2v7gtjmrp6hqt.apps.googleusercontent.com';
+const ALLOWED_DOMAIN = 'novibet.com';
+const GOOGLE_AUTH_KEY = 'cp_google_auth';
+
+function decodeJwt(token) {
+  try {
+    const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    return JSON.parse(atob(base64));
+  } catch { return null; }
+}
+
+function getStoredGoogleAuth() {
+  try {
+    const stored = localStorage.getItem(GOOGLE_AUTH_KEY);
+    if (!stored) return null;
+    const data = JSON.parse(stored);
+    if (data.exp && data.exp * 1000 < Date.now() + 300000) {
+      localStorage.removeItem(GOOGLE_AUTH_KEY);
+      return null;
+    }
+    if (!data.email || !data.email.endsWith('@' + ALLOWED_DOMAIN)) {
+      localStorage.removeItem(GOOGLE_AUTH_KEY);
+      return null;
+    }
+    return data;
+  } catch { return null; }
+}
+
+function AuthGate({ children }) {
+  const [user, setUser] = useState(getStoredGoogleAuth);
+  const googleBtnRef = useRef(null);
+
+  useEffect(() => {
+    if (user) return;
+    const initGoogle = () => {
+      if (!window.google?.accounts?.id) { setTimeout(initGoogle, 200); return; }
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: (response) => {
+          const payload = decodeJwt(response.credential);
+          if (!payload?.email?.endsWith('@' + ALLOWED_DOMAIN)) {
+            alert('Access denied. Use your company account.');
+            return;
+          }
+          const userData = { email: payload.email, name: payload.name, picture: payload.picture, exp: payload.exp, credential: response.credential };
+          localStorage.setItem(GOOGLE_AUTH_KEY, JSON.stringify(userData));
+          setUser(userData);
+        },
+        auto_select: true,
+      });
+      if (googleBtnRef.current) {
+        window.google.accounts.id.renderButton(googleBtnRef.current, { theme: 'filled_black', size: 'large', shape: 'pill' });
+      }
+    };
+    initGoogle();
+  }, [user]);
+
+  if (!user) {
+    return (
+      <div className="auth-gate">
+        <h2>Sign in with your company account</h2>
+        <div ref={googleBtnRef} />
+      </div>
+    );
+  }
+
+  return children(user, () => {
+    localStorage.removeItem(GOOGLE_AUTH_KEY);
+    window.google?.accounts?.id?.disableAutoSelect();
+    setUser(null);
+  });
+}
+
+const ICON_MAP = {
+  move: '↔',
+  plus: '+',
+  minus: '−',
+  pencil: '✎',
+  split: '⑂',
+  'arrow-up': '↑',
+  'arrow-down': '↓',
+};
+
+function DiffDetails({ diffs }) {
+  if (!diffs || diffs.length === 0) return null;
+
+  // New narrative format: diffs is an array of { text, icon }
+  const isNarrative = diffs[0] && typeof diffs[0].text === 'string';
+
+  if (isNarrative) {
+    return (
+      <ul className="narrative-list">
+        {diffs.map((item, i) => (
+          <li key={i} className="narrative-item">
+            <span className={`narrative-icon ${item.icon || 'pencil'}`}>{ICON_MAP[item.icon] || '✎'}</span>
+            <span className="narrative-text">{item.text}</span>
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
+  // Legacy format fallback: diffs is array of { field, changes: [{ label, before, after }] }
+  return (
+    <ul className="narrative-list">
+      {diffs.map((diff, di) => (
+        <React.Fragment key={di}>
+          {diff.changes && diff.changes.length > 0 ? (
+            diff.changes.map((c, ci) => (
+              <li key={`${di}-${ci}`} className="narrative-item">
+                <span className="narrative-icon pencil">✎</span>
+                <span className="narrative-text">
+                  <strong>{diff.field}</strong> — {c.label}: {c.before === undefined ? '—' : String(c.before)} → {c.after === undefined ? '—' : String(c.after)}
+                  {c.hint && ` (${c.hint})`}
+                </span>
+              </li>
+            ))
+          ) : (
+            <li key={di} className="narrative-item">
+              <span className="narrative-icon pencil">✎</span>
+              <span className="narrative-text"><strong>{diff.field}</strong> — changed</span>
+            </li>
+          )}
+        </React.Fragment>
+      ))}
+    </ul>
+  );
+}
+
+function AuditLog({ user, onLogout }) {
+  const [entries, setEntries] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [filterUser, setFilterUser] = useState('');
+  const [filterVertical, setFilterVertical] = useState('');
+  const [filterDays, setFilterDays] = useState('30');
+  const [expandedIds, setExpandedIds] = useState(new Set());
+
+  const toggleExpand = (id) => {
+    setExpandedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const fetchLog = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (filterUser) params.set('user', filterUser);
+      if (filterVertical) params.set('vertical', filterVertical);
+      if (filterDays) params.set('days', filterDays);
+      const resp = await fetch(`${API_URL}/api/audit-log?${params}`);
+      const data = await resp.json();
+      setEntries(data.entries || []);
+      setTotal(data.total || 0);
+    } catch (e) {
+      console.error('Failed to fetch audit log:', e);
+    } finally {
+      setLoading(false);
+    }
+  }, [filterUser, filterVertical, filterDays]);
+
+  useEffect(() => { fetchLog(); }, [fetchLog]);
+
+  // Extract unique users & verticals for filter dropdowns
+  const uniqueUsers = [...new Set(entries.map(e => e.userName).filter(n => n && n !== 'unknown'))];
+  const verticals = ['growth', 'sportsbook', 'casino', 'account', 'payments'];
+
+  const formatTime = (ts) => {
+    const d = new Date(ts);
+    const now = new Date();
+    const diff = now - d;
+    if (diff < 60000) return 'Just now';
+    if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) + ' ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  return (
+    <div>
+      <div className="header">
+        <h1>
+          📋 Activity Log <span>Blueprint</span>
+        </h1>
+        <div className="header-right">
+          <a href="/" className="back-link">← Back to Planner</a>
+          {user.picture && <img src={user.picture} referrerPolicy="no-referrer" />}
+          <span className="user-name">{user.name?.split(' ')[0]}</span>
+          <button className="logout-btn" onClick={onLogout}>Logout</button>
+        </div>
+      </div>
+
+      <div className="filters">
+        <div className="filter-group">
+          <label>User:</label>
+          <select value={filterUser} onChange={e => setFilterUser(e.target.value)}>
+            <option value="">All users</option>
+            {uniqueUsers.map(u => <option key={u} value={u}>{u}</option>)}
+          </select>
+        </div>
+        <div className="filter-group">
+          <label>Vertical:</label>
+          <select value={filterVertical} onChange={e => setFilterVertical(e.target.value)}>
+            <option value="">All verticals</option>
+            {verticals.map(v => <option key={v} value={v}>{v.charAt(0).toUpperCase() + v.slice(1)}</option>)}
+          </select>
+        </div>
+        <div className="filter-group">
+          <label>Period:</label>
+          <select value={filterDays} onChange={e => setFilterDays(e.target.value)}>
+            <option value="1">Last 24 hours</option>
+            <option value="7">Last 7 days</option>
+            <option value="14">Last 14 days</option>
+            <option value="30">Last 30 days</option>
+          </select>
+        </div>
+        <button className="refresh-btn" onClick={fetchLog}>🔄 Refresh</button>
+        <span className="entry-count">{total} entries</span>
+      </div>
+
+      <div className="log-container">
+        {loading ? (
+          <div className="loading">Loading activity log</div>
+        ) : entries.length === 0 ? (
+          <div className="empty">No activity found for the selected filters.</div>
+        ) : (
+          <table>
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>User</th>
+                <th>Action</th>
+                <th>Vertical</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody>
+              {entries.map(entry => {
+                const hasDiffs = entry.diffs && entry.diffs.length > 0;
+                const isExpanded = expandedIds.has(entry.id);
+                return (
+                  <React.Fragment key={entry.id}>
+                    <tr>
+                      <td className="ts" title={new Date(entry.timestamp).toLocaleString()}>{formatTime(entry.timestamp)}</td>
+                      <td>
+                        <div className="user-cell">
+                          <span>{entry.userName}</span>
+                          {entry.userEmail !== 'unknown' && <span className="user-email">({entry.userEmail.split('@')[0]})</span>}
+                        </div>
+                      </td>
+                      <td className="action-cell">{entry.action}</td>
+                      <td>{entry.vertical && <span className="vertical-badge">{entry.vertical}</span>}</td>
+                      <td className="details-cell">
+                        {hasDiffs ? (
+                          <div className="details-summary" onClick={() => toggleExpand(entry.id)}>
+                            <span className={`details-toggle${isExpanded ? ' open' : ''}`}>▶</span>
+                            <span>{entry.details}</span>
+                          </div>
+                        ) : (
+                          <span>{entry.details}</span>
+                        )}
+                        {hasDiffs && isExpanded && <DiffDetails diffs={entry.diffs} />}
+                      </td>
+                    </tr>
+                  </React.Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Root() {
+  return (
+    <AuthGate>
+      {(user, onLogout) => <AuditLog user={user} onLogout={onLogout} />}
+    </AuthGate>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<Root />);
+</script>
+</body>
+</html>
