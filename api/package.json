@@ -1,0 +1,31 @@
+{
+  "name": "capacity-planner-api",
+  "version": "1.0.0",
+  "description": "Capacity Planner API — Railway backend",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "jest --verbose --forceExit --detectOpenHandles",
+    "test:unit": "jest --verbose --forceExit __tests__/helpers.test.js",
+    "test:integration": "jest --verbose --forceExit --detectOpenHandles __tests__/api.test.js",
+    "test:ws": "jest --verbose --forceExit --detectOpenHandles __tests__/websocket.test.js",
+    "test:snapshots": "jest --verbose --forceExit --detectOpenHandles __tests__/snapshots.test.js",
+    "test:computations": "jest --verbose __tests__/computations.test.js",
+    "test:sanitization": "jest --verbose --forceExit --detectOpenHandles __tests__/sanitization.test.js",
+    "test:coverage": "jest --verbose --forceExit --detectOpenHandles --coverage"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testTimeout": 15000
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
+    "google-auth-library": "^9.14.0",
+    "ws": "^8.16.0"
+  },
+  "devDependencies": {
+    "jest": "^30.2.0",
+    "supertest": "^7.2.2"
+  }
+}
